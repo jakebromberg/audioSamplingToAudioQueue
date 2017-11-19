@@ -1,11 +1,3 @@
-//
-//  AppDelegate.m
-//  sampleQueueIphone
-//
-//  Created by Abdullah Bakhach on 9/4/12.
-//  Copyright (c) 2012 Amazon. All rights reserved.
-//
-
 #import "AppDelegate.h"
 #import "ViewController.h"
 
@@ -15,9 +7,8 @@
 @synthesize viewController = _viewController;
 
 
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
-{
-    self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
     // Override point for customization after application launch.
     self.viewController = [[ViewController alloc] initWithNibName:@"ViewController" bundle:nil];
     self.window.rootViewController = self.viewController;
@@ -46,8 +37,7 @@
     
     // and wait
     printf("Playing...\n");
-    do
-    {
+    do {
         CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.25, false);
     } while (!player.isDone /*|| gIsRunning*/);
     
@@ -69,24 +59,21 @@ cleanup:
 }
 
 
-- (NSDictionary *)getPCMaSBD
-{
+- (NSDictionary *)getPCMaSBD {
     // Set the read settings
     NSDictionary *PCMaSBD = [[NSMutableDictionary alloc] init];
     
-    [PCMaSBD setValue:[NSNumber numberWithInt:kAudioFormatLinearPCM]
-                         forKey:AVFormatIDKey];
-    [PCMaSBD setValue:[NSNumber numberWithInt:16] forKey:AVLinearPCMBitDepthKey];
-    [PCMaSBD setValue:[NSNumber numberWithBool:NO] forKey:AVLinearPCMIsBigEndianKey];
-    [PCMaSBD setValue:[NSNumber numberWithBool:NO] forKey:AVLinearPCMIsFloatKey];
-    [PCMaSBD setValue:[NSNumber numberWithBool:NO] forKey:AVLinearPCMIsNonInterleaved];
-    [PCMaSBD setValue:[NSNumber numberWithFloat:44100.0] forKey:AVSampleRateKey];
+    [PCMaSBD setValue:@(kAudioFormatLinearPCM) forKey:AVFormatIDKey];
+    [PCMaSBD setValue:@16 forKey:AVLinearPCMBitDepthKey];
+    [PCMaSBD setValue:@NO forKey:AVLinearPCMIsBigEndianKey];
+    [PCMaSBD setValue:@NO forKey:AVLinearPCMIsFloatKey];
+    [PCMaSBD setValue:@NO forKey:AVLinearPCMIsNonInterleaved];
+    [PCMaSBD setValue:@44100.0f forKey:AVSampleRateKey];
     
     return PCMaSBD;
 }
 
--(AudioStreamBasicDescription)getPCMaSBDRaw
-{
+- (AudioStreamBasicDescription)getPCMaSBDRaw {
     // get the audio data format from the file
     // we know that it is PCM.. since it's converted    
     AudioStreamBasicDescription dataFormat;
@@ -100,13 +87,11 @@ cleanup:
     dataFormat.mBitsPerChannel = 16;  
     
     return dataFormat;
-    
 }
 
--(AudioStreamBasicDescription)getTrackNativeSettings:(AVAssetTrack *) track
-{
+- (AudioStreamBasicDescription)getTrackNativeSettings:(AVAssetTrack *)track {
 
-    CMFormatDescriptionRef formDesc = (__bridge CMFormatDescriptionRef)[[track formatDescriptions] objectAtIndex:0];
+    CMFormatDescriptionRef formDesc = (__bridge CMFormatDescriptionRef)track.formatDescriptions[0];
     const AudioStreamBasicDescription* asbdPointer = CMAudioFormatDescriptionGetStreamBasicDescription(formDesc);
     //because this is a pointer and not a struct we need to move the data into a struct so we can use it
     AudioStreamBasicDescription asbd = {0};
@@ -116,8 +101,7 @@ cleanup:
     
 }
 
-- (void) setupReader 
-{
+- (void)setupReader  {
     
     // this value represents the URL of an iPod music item, which was  hardcoded to simplify this example
     // to create UI to allow the user to manually pick their own music etc.. take a look at this tutorial
@@ -132,7 +116,7 @@ cleanup:
     NSError * error = nil;
     AVAssetReader* reader = [[AVAssetReader alloc] initWithAsset:songAsset error:&error];
     
-    AVAssetTrack* track = [songAsset.tracks objectAtIndex:0];     
+    AVAssetTrack* track = (songAsset.tracks)[0];     
     nativeTrackASBD = [self getTrackNativeSettings:track];
     
     readerOutput = [AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:track
@@ -144,8 +128,7 @@ cleanup:
 
 }
 
-- (void) setupQueue
-{
+- (void)setupQueue {
     
     AudioStreamBasicDescription asbd = nativeTrackASBD;    
     
@@ -182,14 +165,13 @@ cleanup:
     player.isDone = false;
     player.packetPosition = 0;
     int i;
-    for (i = 0; i < kNumberPlaybackBuffers; ++i)
-    {
+    for (i = 0; i < kNumberPlaybackBuffers; ++i) {
         CheckError(AudioQueueAllocateBuffer(queue, bufferByteSize, &audioQueueBuffers[i]), "AudioQueueAllocateBuffer failed");    
         
         // EOF (the entire file's contents fit in the buffers)
         if (player.isDone)
             break;
-    }	
+    }    
     
     AudioSessionInitialize (
                             NULL,                          // 'NULL' to use the default (main) run loop
@@ -209,16 +191,14 @@ cleanup:
 }
 
 
--(void)readVBRPackets
-{
+- (void)readVBRPackets {
     // initialize a mutex and condition so that we can block on buffers in use.
     pthread_mutex_init(&queueBuffersMutex, NULL);
     pthread_cond_init(&queueBufferReadyCondition, NULL);
     
     state = AS_BUFFERING;  
 
-    while ((sample = [readerOutput copyNextSampleBuffer])) 
-    {                                          
+    while ((sample = [readerOutput copyNextSampleBuffer]))  {
 
         
         Boolean isBufferDataReady = CMSampleBufferDataIsReady(sample);
@@ -245,7 +225,7 @@ cleanup:
                    "could not read sample data");
         
         const AudioStreamPacketDescription   * inPacketDescriptions;
-        size_t								 packetDescriptionsSizeOut;
+        size_t                                 packetDescriptionsSizeOut;
         size_t inNumberPackets;
         
         CheckError(CMSampleBufferGetAudioStreamPacketDescriptionsPtr(sample, 
@@ -258,19 +238,17 @@ cleanup:
         AudioBuffer audioBuffer = audioBufferList.mBuffers[0];
         
 
-        for (int i = 0; i < inNumberPackets; ++i)
-        {
+        for (int i = 0; i < inNumberPackets; ++i) {
             
             SInt64 dataOffset = inPacketDescriptions[i].mStartOffset;
-			UInt32 packetSize   = inPacketDescriptions[i].mDataByteSize;            
+            UInt32 packetSize   = inPacketDescriptions[i].mDataByteSize;            
             
             size_t packetSpaceRemaining;
             packetSpaceRemaining = bufferByteSize - bytesFilled;
             
             // if the space remaining in the buffer is not enough for the data contained in this packet
             // then just write it
-            if (packetSpaceRemaining < packetSize)
-            {
+            if (packetSpaceRemaining < packetSize) {
                 // NSLog(@"oops! packetSpaceRemaining (%zu) is smaller than datasize (%lu) SO WE WILL SHIP PACKET [%d]: (abs number %lu)",
                 //     packetSpaceRemaining, dataSize, i, packetNumber);
                 
@@ -309,8 +287,7 @@ cleanup:
     
 }
 
--(void)readCBRPackets
-{
+- (void)readCBRPackets {
     
     // initialize a mutex and condition so that we can block on buffers in use.
     pthread_mutex_init(&queueBuffersMutex, NULL);
@@ -352,17 +329,14 @@ cleanup:
             size_t bufSpaceRemaining;
             bufSpaceRemaining = bufferByteSize - bytesFilled;
             
-            @synchronized(self)
-            {
+            @synchronized(self) {
                 bufSpaceRemaining = bufferByteSize - bytesFilled;
                 size_t copySize;    
                 
-                if (bufSpaceRemaining < inNumberBytes)
-                {
+                if (bufSpaceRemaining < inNumberBytes) {
                     copySize = bufSpaceRemaining;             
                 }
-                else 
-                {
+                else  {
                     copySize = inNumberBytes;
                 }
                         
@@ -379,8 +353,7 @@ cleanup:
             }
             
             // if the space remaining in the buffer is not enough for this packet, then enqueue the buffer.
-            if (bufSpaceRemaining < inNumberBytes + bytesFilled)
-            {
+            if (bufSpaceRemaining < inNumberBytes + bytesFilled) {
                 [self enqueueBuffer];
             }
             
@@ -392,12 +365,10 @@ cleanup:
      
 }
 
--(void)enqueueBuffer 
-{
-    @synchronized(self)
-    {
+- (void)enqueueBuffer  {
+    @synchronized(self) {
 
-        inuse[fillBufferIndex] = true;		// set in use flag
+        inuse[fillBufferIndex] = true;        // set in use flag
         buffersUsed++;
         
         // enqueue buffer
@@ -410,14 +381,12 @@ cleanup:
         NSLog(@"\n\n\n");            
         NSLog(@":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::");*/
         
-		if (packetsFilled)
-		{
+        if (packetsFilled) {
     /*        NSLog(@"\n\n\n\n\n\n");
             NSLog(@":::::: we are enqueuing buffer with %zu packtes!",packetsFilled);
             NSLog(@"buffer data is %@",[NSData dataWithBytes:fillBuf->mAudioData length:fillBuf->mAudioDataByteSize]);
             
-            for (int i = 0; i < packetsFilled; i++)
-            {
+            for (int i = 0; i < packetsFilled; i++) {
                 NSLog(@"\THIS IS THE PACKET WE ARE COPYING TO AUDIO BUFFER----------------\n");
                 NSLog(@"this is packetDescriptionArray.mStartOffset: %lld", packetDescs[i].mStartOffset);
                 NSLog(@"this is packetDescriptionArray.mVariableFramesInPacket: %lu", packetDescs[i].mVariableFramesInPacket);
@@ -427,36 +396,31 @@ cleanup:
             */
 
                         
-			err = AudioQueueEnqueueBuffer(queue, fillBuf, packetsFilled, packetDescs);
-		}
-		else
-		{
+            err = AudioQueueEnqueueBuffer(queue, fillBuf, packetsFilled, packetDescs);
+        }
+        else {
             NSLog(@":::::: we are enqueuing buffer with fillBufIndex %d, and bytes %zu", fillBufferIndex, bytesFilled);
             
             //NSLog(@"enqueue buffer thread name %@", [NSThread currentThread].name);
-			err = AudioQueueEnqueueBuffer(queue, fillBuf, 0, NULL);
-		}
+            err = AudioQueueEnqueueBuffer(queue, fillBuf, 0, NULL);
+        }
 
-        if (err)
-        {
+        if (err) {
             NSLog(@"could not enqueue queue with buffer");
             return;
         }
         
         
-        if (state == AS_BUFFERING)
-        {
+        if (state == AS_BUFFERING) {
             //
             // Fill all the buffers before starting. This ensures that the
             // AudioFileStream stays a small amount ahead of the AudioQueue to
             // avoid an audio glitch playing streaming files on iPhone SDKs < 3.0
             //
-            if (buffersUsed == kNumberPlaybackBuffers - 1)
-            {
+            if (buffersUsed == kNumberPlaybackBuffers - 1) {
                 NSLog(@"STARTING THE QUEUE");
                 err = AudioQueueStart(queue, NULL);
-                if (err)
-                {
+                if (err) {
                     NSLog(@"couldn't start queue");
                     return;
                 }
@@ -466,15 +430,14 @@ cleanup:
         
         // go to next buffer
         if (++fillBufferIndex >= kNumberPlaybackBuffers) fillBufferIndex = 0;
-        bytesFilled = 0;		// reset bytes filled
-   		packetsFilled = 0;		// reset packets filled
+        bytesFilled = 0;        // reset bytes filled
+           packetsFilled = 0;        // reset packets filled
 
     }
     
     // wait until next buffer is not in use
     pthread_mutex_lock(&queueBuffersMutex); 
-    while (inuse[fillBufferIndex])
-    {
+    while (inuse[fillBufferIndex]) {
         pthread_cond_wait(&queueBufferReadyCondition, &queueBuffersMutex);
     }
     pthread_mutex_unlock(&queueBuffersMutex);
@@ -486,8 +449,7 @@ cleanup:
 #pragma mark - utility functions -
 
 // generic error handler - if err is nonzero, prints error message and exits program.
-static void CheckError(OSStatus error, const char *operation)
-{
+    static void CheckError(OSStatus error, const char *operation) {
     if (error == noErr) return;
     
     char str[20];
@@ -507,8 +469,7 @@ static void CheckError(OSStatus error, const char *operation)
 
 // we only use time here as a guideline
 // we're really trying to get somewhere between 16K and 64K buffers, but not allocate too much if we don't need it/*
-void CalculateBytesForTime(AudioStreamBasicDescription inDesc, Float64 inSeconds, UInt32 *outBufferSize, UInt32 *outNumPackets)
-{
+void CalculateBytesForTime(AudioStreamBasicDescription inDesc, Float64 inSeconds, UInt32 *outBufferSize, UInt32 *outNumPackets) {
     
     // we need to calculate how many packets we read at a time, and how big a buffer we need.
     // we base this on the size of the packets in the file and an approximate duration for each buffer.
@@ -548,9 +509,8 @@ void CalculateBytesForTime(AudioStreamBasicDescription inDesc, Float64 inSeconds
 static void MyCopyEncoderCookieToQueue(AudioFileID theFile, AudioQueueRef queue ) {
     UInt32 propertySize;
     OSStatus result = AudioFileGetPropertyInfo (theFile, kAudioFilePropertyMagicCookieData, &propertySize, NULL);
-    if (result == noErr && propertySize > 0)
-    {
-        Byte* magicCookie = (UInt8*)malloc(sizeof(UInt8) * propertySize);	
+    if (result == noErr && propertySize > 0) {
+        Byte* magicCookie = (UInt8*)malloc(sizeof(UInt8) * propertySize);    
         CheckError(AudioFileGetProperty (theFile, kAudioFilePropertyMagicCookieData, &propertySize, magicCookie), "get cookie from file failed");
         CheckError(AudioQueueSetProperty(queue, kAudioQueueProperty_MagicCookie, magicCookie, propertySize), "set cookie on queue failed");
         free(magicCookie);
@@ -561,8 +521,7 @@ static void MyCopyEncoderCookieToQueue(AudioFileID theFile, AudioQueueRef queue 
 #pragma mark - audio queue -
 
 
-static void MyAQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBufferRef inCompleteAQBuffer) 
-{
+static void MyAQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueBufferRef inCompleteAQBuffer)  {
     AppDelegate *appDelegate = (__bridge AppDelegate *) inUserData;
     [appDelegate myCallback:inUserData
                inAudioQueue:inAQ 
@@ -573,21 +532,17 @@ static void MyAQOutputCallback(void *inUserData, AudioQueueRef inAQ, AudioQueueB
 
 - (void)myCallback:(void *)userData 
       inAudioQueue:(AudioQueueRef)inAQ
-audioQueueBufferRef:(AudioQueueBufferRef)inCompleteAQBuffer
-{
+audioQueueBufferRef:(AudioQueueBufferRef)inCompleteAQBuffer {
 
     unsigned int bufIndex = -1;
-    for (unsigned int i = 0; i < kNumberPlaybackBuffers; ++i)
-    {
-        if (inCompleteAQBuffer == audioQueueBuffers[i])
-        {
+    for (unsigned int i = 0; i < kNumberPlaybackBuffers; ++i) {
+        if (inCompleteAQBuffer == audioQueueBuffers[i]) {
             bufIndex = i;
             break;
         }
     }
     
-    if (bufIndex == -1)
-    {
+    if (bufIndex == -1) {
         NSLog(@"something went wrong at queue callback");
         return;
     }
@@ -602,7 +557,5 @@ audioQueueBufferRef:(AudioQueueBufferRef)inCompleteAQBuffer
     pthread_cond_signal(&queueBufferReadyCondition);
     pthread_mutex_unlock(&queueBuffersMutex);
 }
-
-
 
 @end
